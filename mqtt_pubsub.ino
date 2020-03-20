@@ -1,7 +1,17 @@
 /*
+ ESP8266 MQTT pub sub + serial connectivity
+ Based on code from Andreas Spiess https://github.com/SensorsIot/MQTT-Examples/blob/master/ESP_MQTT_PUBSUB_LIBRARY/ESP_MQTT_PUBSUB_LIBRARY.ino
 
+ ESP8266 board
+ - connects to MQTT broker
+ - subscribes to "T_COMMAND" topic for commands to action
+ - sends any commands to serial port and get response
+ - publishes response (unchanged) to "T_RESPONSE" topic
+*/
+
+/*
+ Original comment
  PUBSUB MQTT library
-
 
  Basic ESP8266 MQTT example
  This sketch demonstrates the capabilities of the pubsub library in combination
@@ -20,41 +30,25 @@
        http://arduino.esp8266.com/stable/package_esp8266com_index.json
   - Open the "Tools -> Board -> Board Manager" and click install for the ESP8266"
   - Select your ESP8266 in "Tools -> Board"
-  Based on code from Andreas Spiess https://github.com/SensorsIot/MQTT-Examples/blob/master/ESP_MQTT_PUBSUB_LIBRARY/ESP_MQTT_PUBSUB_LIBRARY.ino
+  Code from Andreas Spiess
 */
-
-#define LEDBLUE 13
 
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
-
-/*
- *  I save my credentials in a file to protect them. Please comment this line and fill out
- *  your credentials below
- *
- */
-
+//credentials file
 #include "credentials.h"
 
-
-
 /*
- *
- #define SSID          "..."
- #define WIFI_KEY      "..."
- #define MQTT_BROKER          "io.adafruit.com"
- #define MQTT_PORT      1883
- #define MQTT_USERNAME   "..."
- #define MQTT_KEY        "..."
- #define USERNAME          "sensorsiot/"
- #define PREAMBLE          "feeds/"
- #define T_LUMINOSITY      "luminosity"
- #define T_CLIENTSTATUS    "clientStatus"
- #define T_COMMAND         "command"
-*
+#define WIFI_SSID       "..."
+#define WIFI_PASSWD     "..."
+#define MQTT_BROKER     "..."
+#define MQTT_PORT       1883
+#define MQTT_USERNAME   "..."
+#define MQTT_KEY        "..."
 */
-
+#define T_COMMAND       "/inverter0/command"
+#define T_RESPONSE      "/inverter0/response"
 
 unsigned long entry;
 byte clientStatus, prevClientStatus = 99;
@@ -62,23 +56,22 @@ float luminosity, prevLumiosity = -1;
 char valueStr[5];
 
 WiFiClient WiFiClient;
-// create MQTT object
 PubSubClient client(WiFiClient);
-
 
 //
 void setup() {
-
-  pinMode(LEDBLUE, OUTPUT);
+  //pinMode(LEDBLUE, OUTPUT);
   Serial.begin(115200);
   delay(100);
   Serial.println();
   Serial.println();
   Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
-
+  Serial.println(WIFI_SSID);
+  
+  // Connect to WiFi
+  WiFi.begin(WIFI_SSID, WIFI_PASSWD);
   while (WiFi.status() != WL_CONNECTED) {
+    // add a delay before checking if connected again
     delay(500);
     Serial.print(".");
   }
@@ -89,37 +82,40 @@ void setup() {
   Serial.println(WiFi.localIP());
   WiFi.printDiag(Serial);
 
-  client.setServer(SERVER, SERVERPORT);
+  // set-up MQTT config
+  client.setServer(MQTT_BROKER, MQTT_PORT);
   client.setCallback(callback);
 }
 
 //
 void loop() {
-  //Serial.println("loop");
+  //Serial.println("-");
   yield();
+  // Attempt to connect if not connected
   if (!client.connected()) {
     Serial.println("Attempting MQTT connection...");
-    // Attempt to connect
+    // Attempt to connect to MQTT broker .connect(clientID, username, password) or .connect(clientID)
     if (client.connect("", MQTT_USERNAME, MQTT_KEY)) {
       Serial.println("connected");
-      // ... and resubscribe
-      client.subscribe(USERNAME PREAMBLE T_COMMAND, 1);
-      client.subscribe(USERNAME PREAMBLE "test", 1);
+      // Subscribe to command topic
+      client.subscribe(T_COMMAND, 1);
+      // ^ need to check single topic vs client.subscribe(USERNAME PREAMBLE T_COMMAND, 1)
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
+      delay(5000); // Wait 5 seconds before retrying
     }
   }
 
+  // 1.2 sec delay between readings
   if (millis() - entry > 1200) {
     Serial.println("Measure");
     entry = millis();
     luminosity = analogRead(A0);
   }
 
+  // publish only changes (with 0.5s delay to match 2/sec max of adafruit)
   if (client.connected() && prevLumiosity != luminosity) {
     Serial.println("Publish Luminosity");
     String hi = (String)luminosity;
@@ -142,8 +138,6 @@ void loop() {
 
 
 //----------------------------------------------------------------------
-
-
 void callback(char* topic, byte * data, unsigned int length) {
   // handle message arrived {
 
@@ -153,11 +147,16 @@ void callback(char* topic, byte * data, unsigned int length) {
     Serial.print((char)data[i]);
   }
   Serial.println();
+  // this would be where we send the command to the serial port
+  // and publish the response
+
+  /*
   if (data[1] == 'F')  {
     clientStatus = 0;
-    digitalWrite(LEDBLUE, LOW);
+    //digitalWrite(LEDBLUE, LOW);
   } else {
     clientStatus = 1;
-    digitalWrite(LEDBLUE, HIGH);
+    //digitalWrite(LEDBLUE, HIGH);
+  */
   }
 }
