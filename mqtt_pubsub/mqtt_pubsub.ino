@@ -120,7 +120,7 @@ void loop() {
     Serial.println("Publish Luminosity");
     String hi = (String)luminosity;
     hi.toCharArray(valueStr, 5);
-    client.publish(USERNAME PREAMBLE T_LUMINOSITY, valueStr);
+    //client.publish(USERNAME PREAMBLE T_LUMINOSITY, valueStr);
     prevLumiosity = luminosity;
     delay(500);
   }
@@ -130,7 +130,7 @@ void loop() {
 
     String hi = (String)clientStatus;
     hi.toCharArray(valueStr, 2);
-    client.publish(USERNAME PREAMBLE T_CLIENTSTATUS, valueStr);
+    //client.publish(USERNAME PREAMBLE T_CLIENTSTATUS, valueStr);
     prevClientStatus = clientStatus;
   }
   client.loop();
@@ -157,6 +157,7 @@ void callback(char* topic, byte * data, unsigned int length) {
   } else {
     clientStatus = 1;
     //digitalWrite(LEDBLUE, HIGH);
-  */
+  
   }
+  */
 }
